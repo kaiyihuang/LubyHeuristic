@@ -14,8 +14,6 @@ from multiprocess import set_start_method
 
 CurrGraph = Graph.Read_Ncol("C:/dev/facebook/107.edges",directed=False)
 
-#framey = pandas.read_csv("C:/dev/facebook_clean_data/artist_edges.csv",header=None)
-#CurrGraph = Graph.TupleList(framey.itertuples(index=False),directed=False,weights=False)
 
 
 CurrGraph.simplify(multiple=True, loops=True, combine_edges=None)
