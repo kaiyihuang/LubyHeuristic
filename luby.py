@@ -17,9 +17,13 @@ import ast
 
 CurrGraph = Graph.Read_Ncol("C:/dev/facebook/107.edges",directed=False)
 lock_g = Lock()
+
+
 framey = pandas.read_csv("C:/dev/facebook_clean_data/new_sites_edges.csv",header=None)
-#CurrGraph = Graph.TupleList(framey.itertuples(index=False),directed=False,weights=False)
-#CurrGraph.simplify(multiple=True, loops=True, combine_edges=None)
+CurrGraph = Graph.TupleList(framey.itertuples(index=False),directed=False,weights=False)
+
+
+CurrGraph.simplify(multiple=True, loops=True, combine_edges=None)
 
 def chunks(l, n):
     n = max(1, n)
@@ -328,7 +332,7 @@ def cellular_automata():
     returnList = []
     TopWorkSet = CurrGraph.copy()
     DeadList = dict()
-
+    iter = 0
     
     while(TopWorkSet.vcount() > 0):
         n = TopWorkSet.vcount()
@@ -341,7 +345,6 @@ def cellular_automata():
         c2 = cell_work_1.remote(TopWorkShared,int(chunk/4),int(2*chunk/4))
         c3 = cell_work_1.remote(TopWorkShared,int(2*chunk/4),int(3*chunk/4))
         c4 = cell_work_1.remote(TopWorkShared,int(3*chunk/4),int(chunk))
-
         r1 = ray.get(c1)
         r2 = ray.get(c2)
         r3 = ray.get(c3)
@@ -366,19 +369,26 @@ def cellular_automata():
 
         checkList = r1+r2+r3+r4
 
-        if not verifyInd(CurrGraph,checkList):
+        tempList = []
+        for j in checkList:
+            tempList.append(TopWorkSet.vs[j])
+        if not verifyInd(TopWorkSet,tempList):
+            print(iter)
             pdb.set_trace()
 
         neighborz = TopWorkSet.neighborhood(list(checkList),order=1) #Unfortunately, as the third step theoretically involves simultaneous mutation of an entity, it cannot be replicated here
         totes = []
-        returnList += list(checkList)
+
+        for j in checkList:
+            returnList.append( TopWorkSet.vs[j]['name'])
+
         for neigh in neighborz:
             totes += neigh
         totes += list(checkList)
         totes = set(totes)
         TopWorkSet.delete_vertices(totes)
         checkList = set()
-
+        iter = iter+1
     return returnList
 
 @ray.remote
@@ -395,13 +405,13 @@ def cell_work_1(workset,x,y): #Broadcast the number to neighbors
 def cell_work_2(workset,cellzone,x,y):
     output = []
     for n in workset.vs[x:y]:
-        if(TopWorkSet.degree(n) == 0):
+        if(workset.degree(n) == 0):
             output.append(n.index)
             continue
         l = []
         for neigh in workset.neighbors(n):
             l.append((neigh, cellzone[neigh]))
-        l.sort(key = lambda x: x[1])
+        l.sort(key = lambda x: x[1])      
         if l[0][1] > cellzone[n.index]: #You are the minimum random value generated
             output.append(n.index)
     return output
@@ -437,9 +447,9 @@ def verifyMIS(graph, indSet):
             print("Set is not independent")
             return False
         setcull.add(v)
-        neigh = graph.neighbors(v)
+        neigh = graph.neighbors(graph.vs.find(name=v))
         for n in neigh:
-            setcull.add(n)
+            setcull.add(graph.vs[n])
 
     if(len(graph.vs) == len(setcull)):
         return True
@@ -459,8 +469,8 @@ if __name__ == '__main__':
 
 
     #temp = heurstic_wrapper(10)
-    #print( "Heuristic: " + str(timeit.timeit('heurstic_wrapper(-1)',setup='from __main__ import heurstic_wrapper',number=1)) )
-    #print( "Non Heuristic: " + str(timeit.timeit('lubys_wrap(-1)',setup='from __main__ import lubys_wrap',number=1)) )
+    print( "Heuristic: " + str(timeit.timeit('heurstic_wrapper(10)',setup='from __main__ import heurstic_wrapper',number=1)) )
+    print( "Non Heuristic: " + str(timeit.timeit('lubys_wrap(10)',setup='from __main__ import lubys_wrap',number=1)) )
 
 
     #print(timeit.timeit('ivs_wrapper(1) ',setup='from __main__ import ivs_wrapper',number=1))
