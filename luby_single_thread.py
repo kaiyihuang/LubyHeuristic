@@ -12,15 +12,14 @@ from multiprocess import set_start_method
 
 
 
-#CurrGraph = Graph.Read_Ncol("C:/dev/facebook/107.edges",directed=False)
+CurrGraph = Graph.Read_Ncol("C:/dev/facebook/107.edges",directed=False)
 
-framey = pandas.read_csv("C:/dev/facebook_clean_data/artist_edges.csv",header=None)
-CurrGraph = Graph.TupleList(framey.itertuples(index=False),directed=False,weights=False)
+#framey = pandas.read_csv("C:/dev/facebook_clean_data/artist_edges.csv",header=None)
+#CurrGraph = Graph.TupleList(framey.itertuples(index=False),directed=False,weights=False)
+
+
 CurrGraph.simplify(multiple=True, loops=True, combine_edges=None)
-TopWorkSet = Graph()
-TopWorkSet = CurrGraph.copy()
-outputSet = set()
-CellZone = []
+
 
 
 def annihilate(WorkSet, list_of_vertices): #deletes a set of vertices and their neighbors
@@ -35,8 +34,6 @@ def annihilate(WorkSet, list_of_vertices): #deletes a set of vertices and their 
     WorkSet.delete_vertices(list_of_vertices)
 
 def heur_lubys_func(heurstic):
-    global TopWorkSet 
-    global outputSet
     TopWorkSet = CurrGraph.copy()
     AnsSet = set()
 
@@ -66,38 +63,37 @@ def heur_lubys_func(heurstic):
     while len(TopWorkSet.vs) > 0:
         Z = []
         check = []
-        #pool.map(workFunc1,normy_vs)
-        for v in normy_vs:
-            workFunc1(v)
-        for e in normy_es:
-            workFunc2(e)
-       # pool.map(workFunc2,normy_es)
-        X = outputSet
+        outputSety = set()
+        for v in TopWorkSet.vs:
+            vertex = v
+            choke = TopWorkSet.degree(vertex)
+            if choke == 0:
+                outputSety.add(vertex.index)
+                deathflag = True
+            elif random.randint(0,choke) == 0:
+                outputSety.add(vertex.index)
+
+        for e in TopWorkSet.es:
+            edge = e
+            if edge.target in outputSety and edge.source in outputSety:
+                u = TopWorkSet.degree(edge.source)
+                v = TopWorkSet.degree(edge.target)
+                if random.randint(1,u+v) < u:
+                    outputSety.remove(edge.source)
+                else:
+                    outputSety.remove(edge.target)
+
+        X = outputSety
 
         for Y in X:
-            AnsSet.add(Y['name'])
-            Z.append(Y.index)
+            AnsSet.add(TopWorkSet.vs[Y]['name'])
+
         neigh = TopWorkSet.neighborhood(list(X),order=1)
 
         for n in neigh:
             check += n
-        check = check + Z
-        check = set(check)
-        try:
-            TopWorkSet.delete_vertices(check)
-        except:
-            pdb.set_trace()
-            continue
 
-        outputSet = set()
-
-        normy_vs = []
-        normy_es = [] 
-        for v in TopWorkSet.vs:
-            normy_vs.append(v.index)
-        for e in TopWorkSet.es:
-            normy_es.append(e.index)
-    TopWorkSet = None
+        TopWorkSet.delete_vertices(check)
     return AnsSet
 
 def heurstic_wrapper(limit):
@@ -112,6 +108,10 @@ def heurstic_wrapper(limit):
             ans = heur_lubys_func(heurstic_set)
             check = len(ans_set)
             ans_set.add(frozenset(ans))
+
+            if not verifyMIS(CurrGraph,ans):
+                print("Invalid set detected")
+
             if check >= len(ans_set):
                 print (len(ans_set))
                 return ans_set
@@ -131,7 +131,6 @@ def heurstic_wrapper(limit):
 
     while len(ans_set) < limit:
         ans = heur_lubys_func(heurstic_set)
-        print(verifyMIS(CurrGraph,ans))
         ans_set.add(frozenset(ans) )
         print(len(ans))
         new_heur = set(random.sample(ans, int(len(ans)/4)) ) #Sample a fourth of the solution set into a set entity
@@ -151,29 +150,31 @@ def heurstic_wrapper(limit):
 
 
 
-def workFunc1(v):
-    #for v in inSet:
-    global outputSet
-    global TopWorkSet 
-    vertex = TopWorkSet.vs[v]
-    choke = TopWorkSet.degree(vertex)
+def workFunc1(workobj,x,y):
+    deathflag = False
+    outputSety = set()
+    for v in workobj.vs[x:y]:
+        vertex = v
+        choke = workobj.degree(vertex)
+        if choke == 0:
+            outputSety.add(vertex.index)
+            deathflag = True
+        elif random.randint(0,choke) == 0:
+            outputSety.add(vertex.index)
+    return outputSety
 
-    if choke == 0:
-        outputSet.add(vertex)
-    elif random.randint(0,choke) == 0:
-        outputSet.add(vertex)
-def workFunc2(e):
-    #for e in edgeSet:
-    global outputSet
-    global TopWorkSet 
-    edge =  TopWorkSet.es[e]
-    if edge.target in outputSet and edge.source in outputSet:
-        u = TopWorkSet.degree(edge.source)
-        v = TopWorkSet.degree(edge.target)
-        if random.randint(1,u+v) < u:
-            outputSet.remove(u)
-        else:
-            outputSet.remove(v)
+def workFunc2(outSet,workobj,x,y):
+    outputSet2 = outSet.copy()
+    for e in workobj.es[x:y]:
+        edge = e
+        if edge.target in outputSet2 and edge.source in outputSet2:
+            u = workobj.degree(edge.source)
+            v = workobj.degree(edge.target)
+            if random.randint(1,u+v) < u:
+                outputSet2.remove(edge.source)
+            else:
+                outputSet2.remove(edge.target)
+    return outputSet2
 
 def verifyMIS(graph, indSet):
     setcull = set()
@@ -181,22 +182,19 @@ def verifyMIS(graph, indSet):
         if v in setcull:
             print("Set is not independent")
             return False
-        setcull.add(v)
-        neigh = graph.neighbors(v)
+        setcull.add(graph.vs.find(name=v))
+        neigh = graph.neighbors(graph.vs.find(name=v))
         for n in neigh:
-            if(n in indSet):
-                print("Something's gone horribly wrong")
-            setcull.add(n)
+            setcull.add(graph.vs[n]['name'])
 
     if(len(graph.vs) == len(setcull)):
         return True
     else:
-        print("Set is not maximal")
         return False
+    
+
 def lubys_func():
     #pool = Pool(4)
-    global outputSet
-    global TopWorkSet 
     TopWorkSet = CurrGraph.copy()
     AnsSet = set()
     normy_vs = []
@@ -206,42 +204,44 @@ def lubys_func():
         normy_vs.append(v.index)
     for e in TopWorkSet.es:
         normy_es.append(e.index)
-    #Timer Starts here
+
     while len(TopWorkSet.vs) > 0:
         Z = []
         check = []
-        #pool.map(workFunc1,normy_vs)
-        for v in normy_vs:
-            workFunc1(v)
-        for e in normy_es:
-            workFunc2(e)
-        #pool.map(workFunc2,normy_es)
-        X = outputSet
+        outputSety = set()
+        for v in TopWorkSet.vs:
+            vertex = v
+            choke = TopWorkSet.degree(vertex)
+            if choke == 0:
+                outputSety.add(vertex.index)
+                deathflag = True
+            elif random.randint(0,choke) == 0:
+                outputSety.add(vertex.index)
 
+        for e in TopWorkSet.es:
+            edge = e
+            if edge.target in outputSety and edge.source in outputSety:
+                u = TopWorkSet.degree(edge.source)
+                v = TopWorkSet.degree(edge.target)
+                if random.randint(1,u+v) < u:
+                    outputSety.remove(edge.source)
+                else:
+                    outputSety.remove(edge.target)
+
+        X = outputSety
+        chkset = set()
         for Y in X:
-            AnsSet.add(Y['name'])
-            Z.append(Y.index)
+            AnsSet.add(TopWorkSet.vs[Y]['name'])
+            
         neigh = TopWorkSet.neighborhood(list(X),order=1)
 
         for n in neigh:
             check += n
-        check = check + Z
-        check = set(check)
-        try:
-            TopWorkSet.delete_vertices(check)
-        except:
-            pdb.set_trace()
-            continue
 
-        outputSet = set()
+        TopWorkSet.delete_vertices(check)
 
-        normy_vs = []
-        normy_es = [] 
-        for v in TopWorkSet.vs:
-            normy_vs.append(v.index)
-        for e in TopWorkSet.es:
-            normy_es.append(e.index)
-    TopWorkSet = None
+
+        
     print (len(AnsSet))
     return AnsSet
 
@@ -255,34 +255,42 @@ def lubys_wrap(limit):
 
 def cellular_automata():
     global TopWorkSet 
-    global CellZone
     checkList = set()
     returnList = []
     TopWorkSet = CurrGraph.copy()
     
-    while(TopWorkSet.maxdegree() > 0):
-        CellZone = [[] for i in range(TopWorkSet.vcount())]
-        n = TopWorkSet.vcount()
-        for v in TopWorkSet.vs:
-            randNum = random.randint(1,TopWorkSet.vcount()**4)
-            for neigh in TopWorkSet.neighbors(v):
-                CellZone[neigh].append((v.index, randNum))
-        for v in TopWorkSet.vs:
-            if TopWorkSet.degree(v) != 0:
-                CellZone[v.index].sort(key = lambda x: x[1])
-                winrar = CellZone[v.index][-1][0]
-                checkList.add(winrar)
-                CellZone[v.index] = []
+     
+    while(TopWorkSet.vcount() > 0):
+        output = []
+        CellZone = dict()
 
-        neighborz = TopWorkSet.neighborhood(list(checkList),order=1)
+        output = []
+        for n in TopWorkSet.vs:
+            rand = random.random()
+            CellZone[n.index] = rand
+
+
+        for n in TopWorkSet.vs:
+            if(TopWorkSet.degree(n) == 0):
+                output.append(n.index)
+                continue
+            l = []
+            for neigh in TopWorkSet.neighbors(n):
+                l.append((neigh, CellZone[neigh]))
+            l.sort(key = lambda x: x[1])
+            if l[0][1] > CellZone[n.index]: #You are the minimum random value generated
+                output.append(n.index)
+
+        for o in output:
+            returnList.append(TopWorkSet.vs[o]['name'])
+
+        neighborz = TopWorkSet.neighborhood(list(output),order=1) #Unfortunately, as the third step theoretically involves simultaneous mutation of an entity, it cannot be replicated here
         totes = []
-        returnList += list(checkList)
         for neigh in neighborz:
             totes += neigh
-        totes += list(checkList)
-        totes = set(totes)
         TopWorkSet.delete_vertices(totes)
-        checkList = set()
+    
+
     return returnList
 
 def cellular_wrap(limit):
@@ -292,6 +300,10 @@ def cellular_wrap(limit):
         ans_set.add(frozenset(ans))
         if(len(ans_set) % 2 == 0):
             print(len(ans))
+
+    for ans in ans_set:
+        if not verifyMIS(CurrGraph,ans):
+            print("Invalid set detected")
     return ans_set
 
 
@@ -299,9 +311,9 @@ if __name__ == '__main__':
     print(CurrGraph.vcount())
     #temp = heurstic_wrapper(10)
 
-    #print(timeit.timeit('heurstic_wrapper(10)',setup='from __main__ import heurstic_wrapper',number=1))
+    #print(timeit.timeit('heurstic_wrapper(1)',setup='from __main__ import heurstic_wrapper',number=1))
 
-    #print("Cellular Implementation: " + str(timeit.timeit('cellular_wrap(10)',setup='from __main__ import cellular_wrap',number=1)) )
+    #print("Cellular Implementation: " + str(timeit.timeit('cellular_wrap(1)',setup='from __main__ import cellular_wrap',number=1)) )
 
     print( "Non Heuristic: " + str(timeit.timeit('lubys_wrap(5)',setup='from __main__ import lubys_wrap',number=1)) )
     #print(timeit.timeit('lubys_func()',setup='from __main__ import lubys_func',number=10))
