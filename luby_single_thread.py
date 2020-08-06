@@ -40,10 +40,21 @@ def heur_lubys_func(heurstic):
     TopWorkSet = CurrGraph.copy()
     AnsSet = set()
 
-    for v in heurstic:
-        AnsSet.add(v)
+    check = []
+    Z = []
 
-    annihilate(TopWorkSet,heurstic)
+    for Y in heurstic:
+        Ys = TopWorkSet.vs.find(name=Y)  
+        AnsSet.add(Ys['name'])
+        Z.append(Ys)
+    neigh = TopWorkSet.neighborhood(list(Z),order=1)
+    for n in neigh:
+        check += n
+
+    try:
+        TopWorkSet.delete_vertices(check)
+    except:
+        pass
 
     normy_vs = []
     normy_es = [] 
