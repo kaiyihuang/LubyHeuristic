@@ -464,7 +464,7 @@ def ivs_wrapper(count):
 if __name__ == '__main__':
     Worset = CurrGraph.copy()
     ray.init(num_cpus=4)
-    print(CurrGraph.vcount())
+    print("Size of graph: " + str(CurrGraph.vcount()) )
     print( "Spinup: " + str(timeit.timeit('lubys_wrap(1)',setup='from __main__ import lubys_wrap',number=1)) ) # Always run this so Ray can initialize
 
 
