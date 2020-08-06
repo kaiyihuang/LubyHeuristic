@@ -308,7 +308,7 @@ def cellular_wrap(limit):
 
 
 if __name__ == '__main__':
-    print(CurrGraph.vcount())
+    print("Size of graph: " + str(CurrGraph.vcount()) )
     #temp = heurstic_wrapper(10)
 
     #print(timeit.timeit('heurstic_wrapper(1)',setup='from __main__ import heurstic_wrapper',number=1))
